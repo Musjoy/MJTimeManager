@@ -26,11 +26,7 @@ Pod::Spec.new do |s|
     'GCC_PREPROCESSOR_DEFINITIONS' => 'MODULE_TIME_MANAGER'
   }
 
-  # s.resource_bundles = {
-  #   'MJTimeManager' => ['MJTimeManager/Assets/*.png']
-  # }
-
-  # s.public_header_files = 'Pod/Classes/**/*.h'
-  # s.frameworks = 'UIKit', 'MapKit'
-  # s.dependency 'AFNetworking', '~> 2.3'
+  s.dependency 'ModuleCapability', '~> 0.1.2'
+  s.prefix_header_contents = '#import "ModuleCapability.h"'
+  
 end
