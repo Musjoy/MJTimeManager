@@ -1,0 +1,16 @@
+PODS:
+  - MJTimeManager (0.1.0)
+
+DEPENDENCIES:
+  - MJTimeManager (from `../`)
+
+EXTERNAL SOURCES:
+  MJTimeManager:
+    :path: ../
+
+SPEC CHECKSUMS:
+  MJTimeManager: 4bcb923e7b4d9efba4d0aefd397c6ec1cd6a2c41
+
+PODFILE CHECKSUM: 421d89e33a6d0120c3e99770a69d0a6b5eed1358
+
+COCOAPODS: 1.1.1
