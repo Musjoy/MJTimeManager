@@ -21,7 +21,11 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '8.0'
 
   s.source_files = 'MJTimeManager/Classes/**/*'
-  
+
+  s.user_target_xcconfig = {
+    'GCC_PREPROCESSOR_DEFINITIONS' => 'MODULE_TIME_MANAGER'
+  }
+
   # s.resource_bundles = {
   #   'MJTimeManager' => ['MJTimeManager/Assets/*.png']
   # }
