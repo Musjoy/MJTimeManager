@@ -1,0 +1,6 @@
+use_frameworks!
+target 'MJTimeManager_Tests' do
+  pod 'MJTimeManager', :path => '../'
+  
+  
+end
