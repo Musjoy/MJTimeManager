@@ -1,5 +1,5 @@
 //
-//  TimeManager.m
+//  MJTimeManager.m
 //  Common
 //
 //  Created by 黄磊 on 15/6/27.
@@ -7,13 +7,14 @@
 //
 
 #import "MJTimeManager.h"
-//#import "InterfaceManager.h"
-//#import "DBFetchTime.h"
-//#import "DBManager.h"
 
 #ifdef __has_include(<AFHTTPSessionManager.h>)
 #define MODULE_AFHTTPSessionManager
 #import <AFHTTPSessionManager.h>
+#endif
+
+#ifdef MODULE_WEB_SERVICE
+#import "MJWebService.h"
 #endif
 
 #define kLastServerTime @"lastServerTime"
@@ -60,26 +61,18 @@ static MJTimeManager *s_timeManager = nil;
         }
         
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
-//        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:kAppGetNetwork object:nil];
+#ifdef MODULE_WEB_SERVICE
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:kNoticGetNetwork object:nil];
+#endif
     }
     return self;
 }
 
-- (void)dataInit
-{
-    
-}
-
-
 #pragma mark - Notification Receive
 
-- (void)appStatusActive:(NSNotification *)aNotic
-{
-//    int type = 2;
-//    if ([aNotic.name isEqualToString:kAppGetNetwork]) {
-//        type = 3;
-//    }
-//    [self syncTimeWithType:type];
+- (void)appStatusActive:(NSNotification *)aNotic {
+    
+    [self syncTime];
 }
 
 #pragma mark - Public
@@ -88,70 +81,6 @@ static MJTimeManager *s_timeManager = nil;
 {
     return [[self shareInstance] curServerTime];
 }
-
-//- (NSDate *)lastFetchTimeOf:(NSString *)action withUserId:(NSNumber *)userId identifier:(NSString *)identifier
-//{
-//    NSMutableDictionary *aDic = [@{@"action":action,
-//                                   @"userId":userId} mutableCopy];
-//    if (identifier.length > 0) {
-//        [aDic setObject:identifier forKey:@"identifier"];
-//    }
-//    DBFetchTime *fetchTime = (DBFetchTime *)[DBManager findModel:[DBFetchTime class] inCondition:aDic];
-//    if (fetchTime) {
-//        return fetchTime.lastFetchTime;
-//    }
-//    return [NSDate distantPast];
-//}
-//
-//- (void)setLastFetchTime:(NSDate *)lastFetchTime action:(NSString *)action userId:(NSNumber *)userId identifier:(NSString *)identifier
-//{
-//    NSMutableDictionary *aDic = [@{@"action":action,
-//                                   @"userId":userId} mutableCopy];
-//    if (identifier.length > 0) {
-//        [aDic setObject:identifier forKey:@"identifier"];
-//    }
-//    DBFetchTime *fetchTime = (DBFetchTime *)[DBManager findModel:[DBFetchTime class] inCondition:aDic];
-//    if (fetchTime == nil) {
-//        fetchTime = [[DBFetchTime alloc] init];
-//        fetchTime.action = (NSString<Primary> *)action;
-//        fetchTime.userId = (NSNumber<DBInt> *)userId;
-//        fetchTime.identifier = identifier;
-//    }
-//    fetchTime.lastFetchTime = lastFetchTime;
-//    [DBManager insertModel:fetchTime];
-//}
-//
-//- (NSNumber *)lastFetchIdOf:(NSString *)action withUserId:(NSNumber *)userId identifier:(NSString *)identifier
-//{
-//    NSMutableDictionary *aDic = [@{@"action":action,
-//                                   @"userId":userId} mutableCopy];
-//    if (identifier.length > 0) {
-//        [aDic setObject:identifier forKey:@"identifier"];
-//    }
-//    DBFetchTime *fetchTime = (DBFetchTime *)[DBManager findModel:[DBFetchTime class] inCondition:aDic];
-//    if (fetchTime) {
-//        return fetchTime.lastFetchId;
-//    }
-//    return @0;
-//}
-//
-//- (void)setLastFetchId:(NSNumber *)lastFetchId action:(NSString *)action userId:(NSNumber *)userId identifier:(NSString *)identifier
-//{
-//    NSMutableDictionary *aDic = [@{@"action":action,
-//                                   @"userId":userId} mutableCopy];
-//    if (identifier.length > 0) {
-//        [aDic setObject:identifier forKey:@"identifier"];
-//    }
-//    DBFetchTime *fetchTime = (DBFetchTime *)[DBManager findModel:[DBFetchTime class] inCondition:aDic];
-//    if (fetchTime == nil) {
-//        fetchTime = [[DBFetchTime alloc] init];
-//        fetchTime.action = (NSString<Primary> *)action;
-//        fetchTime.userId = (NSNumber<DBInt> *)userId;
-//        fetchTime.identifier = identifier;
-//    }
-//    fetchTime.lastFetchId = (NSNumber<DBInt> *)lastFetchId;
-//    [DBManager insertModel:fetchTime];
-//}
 
 #pragma mark - Private
 
@@ -181,8 +110,8 @@ static MJTimeManager *s_timeManager = nil;
 
 #pragma mark -
 
-- (void)syncTimeWithType:(int)type
-{
+- (void)syncTime {
+    
 #ifdef MODULE_AFHTTPSessionManager
     NSDate *dateBefore = [NSDate date];
     // 获取网络请求的时间
@@ -228,25 +157,7 @@ static MJTimeManager *s_timeManager = nil;
             // 没有网络，更新时间失败
         }
     }];
-    
 #endif
-
-//    [InterfaceManager timeSync:type completion:^(BOOL isSucceed, NSString *message, id data) {
-//        if (isSucceed && [data isKindOfClass:[NSDictionary class]]) {
-//            NSDate *dateAfter = [NSDate date];
-//            NSDate *localTime = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore]/2];
-//            
-//            NSString *serverTimeStr = [data objectForKey:@"createTime"];
-//            NSDate *serverTime = [DBModel dateFromString:serverTimeStr];
-//            
-//            _lastServerTime = serverTime;
-//            _lastLocalTime = localTime;
-//            
-//            [self saveData];
-//            
-//            [[NSNotificationCenter defaultCenter] postNotificationName:NOTICE_TIME_SYNC_SUCCEED object:nil];
-//        }
-//    }];
 }
 
 @end
@@ -261,6 +172,7 @@ static NSDateFormatter *_internetDateTimeFormatter = nil;
 
 // Instantiate single date formatter
 + (NSDateFormatter *)internetDateTimeFormatter {
+    
     @synchronized(self) {
         if (!_internetDateTimeFormatter) {
             NSLocale *en_US_POSIX = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
@@ -274,12 +186,12 @@ static NSDateFormatter *_internetDateTimeFormatter = nil;
 
 // See http://www.faqs.org/rfcs/rfc822.html
 + (NSDate *)dateFromRFC822String:(NSString *)dateString {
+    
     // Keep dateString around a while (for thread-safety)
     NSDate *date = nil;
     if (dateString) {
         NSDateFormatter *dateFormatter = [NSDate internetDateTimeFormatter];
         @synchronized(dateFormatter) {
-            
             // Process
             NSString *RFC822String = [[NSString stringWithString:dateString] uppercaseString];
             if ([RFC822String rangeOfString:@","].location != NSNotFound) {
@@ -317,8 +229,9 @@ static NSDateFormatter *_internetDateTimeFormatter = nil;
                     date = [dateFormatter dateFromString:RFC822String];
                 }
             }
-            if (!date) NSLog(@"Could not parse RFC822 date: \"%@\" Possible invalid format.", dateString);
-            
+            if (!date){
+                NSLog(@"Could not parse RFC822 date: \"%@\" Possible invalid format.", dateString);
+            }
         }
     }
     // Finished with date string
@@ -327,12 +240,12 @@ static NSDateFormatter *_internetDateTimeFormatter = nil;
 
 // See http://www.faqs.org/rfcs/rfc3339.html
 + (NSDate *)dateFromRFC3339String:(NSString *)dateString {
+    
     // Keep dateString around a while (for thread-safety)
     NSDate *date = nil;
     if (dateString) {
         NSDateFormatter *dateFormatter = [NSDate internetDateTimeFormatter];
         @synchronized(dateFormatter) {
-            
             // Process date
             NSString *RFC3339String = [[NSString stringWithString:dateString] uppercaseString];
             RFC3339String = [RFC3339String stringByReplacingOccurrencesOfString:@"Z" withString:@"-0000"];
@@ -356,8 +269,17 @@ static NSDateFormatter *_internetDateTimeFormatter = nil;
                 [dateFormatter setDateFormat:@"yyyy'-'MM'-'dd'T'HH':'mm':'ss"];
                 date = [dateFormatter dateFromString:RFC3339String];
             }
-            if (!date) NSLog(@"Could not parse RFC3339 date: \"%@\" Possible invalid format.", dateString);
-            
+            if (!date) { // 2017-02-08 03:51:56 Etc/GMT+0800
+                [dateFormatter setDateFormat:@"yyyy'-'MM'-'dd' 'HH':'mm':'ss' Etc/GMT'ZZZ"];
+                date = [dateFormatter dateFromString:RFC3339String];
+            }
+            if (!date) { // 2017-02-08 03:51:56 Etc/GMT
+                [dateFormatter setDateFormat:@"yyyy'-'MM'-'dd' 'HH':'mm':'ss' Etc/GMT'"];
+                date = [dateFormatter dateFromString:RFC3339String];
+            }
+            if (!date) {
+                NSLog(@"Could not parse RFC3339 date: \"%@\" Possible invalid format.", dateString);
+            }
         }
     }
     // Finished with date string

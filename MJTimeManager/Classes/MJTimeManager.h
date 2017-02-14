@@ -19,9 +19,8 @@ static NSString *const NOTICE_TIME_SYNC_SUCCEED     = @"NoticeTimeSyncSucceed";
 /** 当前服务器时间 */
 + (NSDate *)curServerTime;
 
-
-/** 时间同步 type:同步类型<1-启动同步 2-进入同步 3-开网同步> */
-- (void)syncTimeWithType:(int)type;
+/// 同步时间
+- (void)syncTime;
 
 // 以下用于时间增量更新
 - (NSDate *)lastFetchTimeOf:(NSString *)action withUserId:(NSNumber *)userId identifier:(NSString *)identifier;
@@ -38,7 +37,6 @@ static NSString *const NOTICE_TIME_SYNC_SUCCEED     = @"NoticeTimeSyncSucceed";
 
 // A category to parse internet date & time strings
 @interface NSDate (InternetDateTime)
-
 
 + (NSDate *)dateFromRFC3339String:(NSString *)dateString;
 + (NSDate *)dateFromRFC822String:(NSString *)dateString;
