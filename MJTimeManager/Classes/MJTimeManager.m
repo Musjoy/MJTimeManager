@@ -17,17 +17,21 @@
 #import "MJWebService.h"
 #endif
 
-#define kLastServerTime @"lastServerTime"
-#define kLastLocalTime @"lastLocalTime"
+#define kLastServerDate @"lastServerDate"
+#define kLastLocalDate @"lastLocalDate"
+#define kOtherServerDates @"otherServerDates"
 
-#define kLastSyncTime @"lasySyncTime"
+#define kDefaultLastSyncTime @"lasySyncTime"
 
 static MJTimeManager *s_timeManager = nil;
 
 @interface MJTimeManager ()
 
-@property (nonatomic, strong) NSDate *lastServerTime;
-@property (nonatomic, strong) NSDate *lastLocalTime;
+@property (nonatomic, strong) NSDate *lastServerDate;                           ///< 最后一次记录的服务器时间
+@property (nonatomic, strong) NSDate *lastLocalDate;                            ///< 最后一次记录的服务器对应的本地时间
+@property (nonatomic, assign) NSTimeInterval lastSystemUpTime;                  ///< 最后一次记录的系统运行时长
+
+@property (nonatomic, strong) NSMutableDictionary *dicOtherServerDates;         ///< 其他服务器时间
 
 @end
 
@@ -50,16 +54,27 @@ static MJTimeManager *s_timeManager = nil;
     if (self) {
         
         // 读取保存在userDefault里面的数据
-        NSDictionary *dicTime = [[NSUserDefaults standardUserDefaults] objectForKey:kLastSyncTime];
+        NSDictionary *dicTime = [[NSUserDefaults standardUserDefaults] objectForKey:kDefaultLastSyncTime];
         if (dicTime) {
-            NSDate *lastServerTime = [dicTime objectForKey:kLastServerTime];
-            NSDate *lastLocalTime = [dicTime objectForKey:kLastLocalTime];
+            NSDate *lastServerTime = [dicTime objectForKey:kLastServerDate];
+            NSDate *lastLocalTime = [dicTime objectForKey:kLastLocalDate];
             if (lastLocalTime) {
-                self.lastServerTime = lastServerTime;
-                self.lastLocalTime = lastLocalTime;
+                NSDate *curDate = [NSDate date];
+                if ([lastLocalTime compare:curDate] == NSOrderedAscending) {
+                    curDate = lastLocalTime;
+                }
+                NSDate *curServerTime = [self serverDateForDate:curDate];
+                self.lastServerDate = curDate;
+                self.lastLocalDate = curServerTime;
+                self.lastSystemUpTime = [[NSProcessInfo processInfo] systemUptime];
+                NSDictionary *dicOtherServers = [dicTime objectForKey:kOtherServerDates];
+                if (dicOtherServers) {
+                    [self.dicOtherServerDates addEntriesFromDictionary:dicOtherServers];
+                }
             }
         }
-        
+        NSProcessInfo *processInfo = [NSProcessInfo processInfo];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(systemClockChanged:) name:NSSystemClockDidChangeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
 #ifdef MODULE_WEB_SERVICE
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:kNoticGetNetwork object:nil];
@@ -68,51 +83,160 @@ static MJTimeManager *s_timeManager = nil;
     return self;
 }
 
+- (NSMutableDictionary *)dicOtherServerDates
+{
+    if (_dicOtherServerDates == nil) {
+        _dicOtherServerDates = [[NSMutableDictionary alloc] init];
+    }
+    return _dicOtherServerDates;
+}
+
 #pragma mark - Notification Receive
 
-- (void)appStatusActive:(NSNotification *)aNotic {
+// 用户时间修改通知NSSystemClockDidChangeNotification、UIApplicationSignificantTimeChangeNotification
+- (void)systemClockChanged:(NSNotification *)aNotic
+{
+    NSTimeInterval upTime = [[NSProcessInfo processInfo] systemUptime];
+    if (_lastLocalDate == nil) {
+        // 没有获取过服务器时间
+        return;
+    }
+    //
+    NSTimeInterval curSystemUpTime = [[NSProcessInfo processInfo] systemUptime];
+    NSTimeInterval dTime = curSystemUpTime - _lastSystemUpTime;
+    if (dTime < 0) {
+        // 这种情况应该不会存在
+        return;
+    }
     
+    // 更新对应本地时间
+    NSDate *oldLocalTime = [_lastLocalDate dateByAddingTimeInterval:dTime];
+    NSDate *curLocalTime = [NSDate date];
+    
+    NSTimeInterval dLocTime = [curLocalTime timeIntervalSince1970] - [oldLocalTime timeIntervalSince1970];
+    _lastLocalDate = [_lastLocalDate dateByAddingTimeInterval:dLocTime];
+
+}
+
+- (void)appStatusActive:(NSNotification *)aNotic
+{
     [self syncTime];
 }
 
 #pragma mark - Public
 
-+ (NSDate *)curServerTime
++ (NSDate *)curServerDate
 {
-    return [[self shareInstance] curServerTime];
+    return [[self shareInstance] curServerDate];
+}
+
++ (NSDate *)curServerDateForServer:(NSString *)serverKey
+{
+    return [[self shareInstance] curServerDateForServer:serverKey];
+}
+
++ (void)updateServer:(NSString *)serverKey serverDate:(NSDate *)serverDate localDate:(NSDate *)localDate
+{
+    [[self shareInstance] updateServer:serverKey serverDate:serverDate localDate:localDate];
 }
 
 #pragma mark - Private
 
-- (NSDate *)curServerTime
+- (NSDate *)curServerDate
 {
     NSDate *curDate = [NSDate date];
-    if (_lastLocalTime == nil) {
-        return curDate;
+    return [self serverDateForDate:curDate];
+}
+
+- (NSDate *)curServerDateForServer:(NSString *)serverKey
+{
+    if (serverKey == nil || _dicOtherServerDates == nil) {
+        return [self curServerDate];
     }
-    NSTimeInterval dTime = [curDate timeIntervalSince1970] - [_lastLocalTime timeIntervalSince1970];
+    NSDate *curDate = [NSDate date];
+    NSDate *theServerDate = [_dicOtherServerDates objectForKey:serverKey];
+    if (theServerDate) {
+        NSTimeInterval dTime = [self timeIntervalToDate:curDate];
+        return [theServerDate dateByAddingTimeInterval:dTime];
+    }
+    return [self curServerDate];
+}
+
+- (void)updateServer:(NSString *)serverKey serverDate:(NSDate *)serverDate localDate:(NSDate *)localDate
+{
+    if (_lastLocalDate == nil) {
+        return;
+    }
+    
+    NSTimeInterval dTime = [localDate timeIntervalSince1970] - [_lastLocalDate timeIntervalSince1970];
+    
+    serverDate = [serverDate dateByAddingTimeInterval:dTime];
+    
+    [self.dicOtherServerDates setObject:serverDate forKey:serverKey];
+    
+    [self saveData];
+}
+
+- (void)updateServerDate:(NSDate *)serverDate atLocalDate:(NSDate *)localDate
+{
+    if (_dicOtherServerDates) {
+        NSTimeInterval dTime = [serverDate timeIntervalSince1970] - [_lastServerDate timeIntervalSince1970];
+        NSArray *allKey = [_dicOtherServerDates allKeys];
+        for (NSString *aKey in allKey) {
+            NSDate *aDate = _dicOtherServerDates[aKey];
+            aDate = [aDate dateByAddingTimeInterval:dTime];
+            [_dicOtherServerDates setObject:aDate forKey:aKey];
+        }
+    }
+    _lastServerDate = serverDate;
+    _lastLocalDate = localDate;
+    [self saveData];
+}
+
+#pragma mark -
+
+- (NSDate *)serverDateForDate:(NSDate *)locTime
+{
+    if (_lastLocalDate == nil) {
+        return locTime;
+    }
+    
+    NSTimeInterval dTime = [self timeIntervalToDate:locTime];
+    
+    NSDate *aServerDate = [_lastServerDate dateByAddingTimeInterval:dTime];
+    
+    return aServerDate;
+}
+
+- (NSTimeInterval)timeIntervalToDate:(NSDate *)aDate
+{
+    NSTimeInterval dTime = [aDate timeIntervalSince1970] - [_lastLocalDate timeIntervalSince1970];
     
     if (dTime < 0) {
         dTime = 0;
     }
     
-    NSDate *curServerDate = [_lastServerTime dateByAddingTimeInterval:dTime];
-    
-    return curServerDate;
+    return dTime;
 }
 
 - (void)saveData
 {
-    NSDictionary *aDic = @{kLastServerTime:_lastServerTime,
-                           kLastLocalTime:_lastLocalTime};
-    [[NSUserDefaults standardUserDefaults] setObject:aDic forKey:kLastSyncTime];
+    if (_lastLocalDate == nil || _lastServerDate == nil) {
+        return;
+    }
+    NSDictionary *aDic = [NSDictionary dictionaryWithObjectsAndKeys:
+                          _lastServerDate, kLastServerDate,
+                          _lastLocalDate, kLastLocalDate,
+                          _dicOtherServerDates, kOtherServerDates, nil];
+    [[NSUserDefaults standardUserDefaults] setObject:aDic forKey:kDefaultLastSyncTime];
 }
 
 #pragma mark -
 
-- (void)syncTime {
+- (void)syncTime
+{
     
-#ifdef MODULE_AFHTTPSessionManager
+#ifdef MODULE_AFHTTPSessionManager1
     NSDate *dateBefore = [NSDate date];
     // 获取网络请求的时间
     AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
@@ -130,8 +254,8 @@ static MJTimeManager *s_timeManager = nil;
             if (serverTime) {
                 NSDate *dateAfter = [NSDate date];
                 NSDate *localTime = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
-                _lastServerTime = serverTime;
-                _lastLocalTime = localTime;
+                _lastServerDate = serverTime;
+                _lastLocalDate = localTime;
                 [self saveData];
                 
                 [[NSNotificationCenter defaultCenter] postNotificationName:NOTICE_TIME_SYNC_SUCCEED object:nil];
@@ -147,8 +271,8 @@ static MJTimeManager *s_timeManager = nil;
             if (serverTime) {
                 NSDate *dateAfter = [NSDate date];
                 NSDate *localTime = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
-                _lastServerTime = serverTime;
-                _lastLocalTime = localTime;
+                _lastServerDate = serverTime;
+                _lastLocalDate = localTime;
                 [self saveData];
                 
                 [[NSNotificationCenter defaultCenter] postNotificationName:NOTICE_TIME_SYNC_SUCCEED object:nil];
@@ -157,6 +281,33 @@ static MJTimeManager *s_timeManager = nil;
             // 没有网络，更新时间失败
         }
     }];
+#else
+    static BOOL isRequst = NO;
+    if (isRequst) {
+        return;
+    }
+    isRequst = YES;
+    NSDate *dateBefore = [NSDate date];
+    NSOperationQueue *queue = [[NSOperationQueue alloc] init];
+    [NSURLConnection sendAsynchronousRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[kServerUrl stringByAppendingString:@"/time.json"]]]
+                                       queue:queue
+                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *connectionError) {
+                               dispatch_async(dispatch_get_main_queue(), ^{
+                                   NSDictionary *allHeaderFields = [response valueForKey:@"allHeaderFields"];
+                                   NSString *serverDateStr = allHeaderFields[@"Date"];
+                                   NSDate *serverDate = [NSDate dateFromRFC822String:serverDateStr];
+                                   NSLog(@"%@", serverDate);
+                                   if (serverDate) {
+                                       NSDate *dateAfter = [NSDate date];
+                                       NSDate *localDate = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
+                                       
+                                       [self updateServerDate:serverDate atLocalDate:localDate];
+                                       
+                                       [[NSNotificationCenter defaultCenter] postNotificationName:kNoticTimeSyncSucced object:nil];
+                                   }
+                                   isRequst = NO;
+                               });
+                           }];
 #endif
 }
 
