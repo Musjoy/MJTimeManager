@@ -9,7 +9,7 @@
 Pod::Spec.new do |s|
   s.name             = 'MJTimeManager'
   s.version          = '0.1.0'
-  s.summary          = 'TimeManager is used for synchronization server time.'
+  s.summary          = 'MJTimeManager is used for synchronization server time.'
 
   s.homepage         = 'https://github.com/Raymomd-hl/MJTimeManager'
   # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
