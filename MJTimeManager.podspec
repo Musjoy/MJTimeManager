@@ -11,11 +11,11 @@ Pod::Spec.new do |s|
   s.version          = '0.1.0'
   s.summary          = 'MJTimeManager is used for synchronization server time.'
 
-  s.homepage         = 'https://github.com/Raymomd-hl/MJTimeManager'
+  s.homepage         = 'https://github.com/Musjoy/MJTimeManager'
   # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Raymomd-hl' => 'Ray.musjoy@gmail.com' }
-  s.source           = { :git => 'https://github.com/Raymomd-hl/MJTimeManager.git', :tag => "v-#{s.version}" }
+  s.source           = { :git => 'https://github.com/Musjoy/MJTimeManager.git', :tag => "v-#{s.version}" }
 
   s.ios.deployment_target = '8.0'
 

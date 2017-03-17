@@ -8,6 +8,9 @@
 
 #import "MJTimeManager.h"
 #import HEADER_SERVER_URL
+#ifdef MODULE_WEB_SERVICE
+#import "MJWebService.h"
+#endif
 
 #define kLastServerDate @"lastServerDate"
 #define kLastLocalDate @"lastLocalDate"
@@ -48,17 +51,18 @@ static MJTimeManager *s_timeManager = nil;
         // 读取保存在userDefault里面的数据
         NSDictionary *dicTime = [[NSUserDefaults standardUserDefaults] objectForKey:kDefaultLastSyncTime];
         if (dicTime) {
-            NSDate *lastServerTime = [dicTime objectForKey:kLastServerDate];
-            NSDate *lastLocalTime = [dicTime objectForKey:kLastLocalDate];
-            if (lastLocalTime) {
+            NSDate *lastServerDate = [dicTime objectForKey:kLastServerDate];
+            NSDate *lastLocalDate = [dicTime objectForKey:kLastLocalDate];
+            if (lastLocalDate) {
                 NSDate *curDate = [NSDate date];
-                if ([lastLocalTime compare:curDate] == NSOrderedAscending) {
-                    curDate = lastLocalTime;
+                if ([lastLocalDate compare:curDate] == NSOrderedDescending) {
+                    // 如果当前时间比上次保存的时间还小，使用修改的时间
+                    lastLocalDate = curDate;
                 }
-                NSDate *curServerTime = [self serverDateForDate:curDate];
-                self.lastServerDate = curDate;
-                self.lastLocalDate = curServerTime;
+                self.lastLocalDate = lastLocalDate;
+                self.lastServerDate = lastServerDate;
                 self.lastSystemUpTime = [[NSProcessInfo processInfo] systemUptime];
+                
                 NSDictionary *dicOtherServers = [dicTime objectForKey:kOtherServerDates];
                 if (dicOtherServers) {
                     [self.dicOtherServerDates addEntriesFromDictionary:dicOtherServers];
