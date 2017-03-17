@@ -7,15 +7,7 @@
 //
 
 #import "MJTimeManager.h"
-
-#ifdef __has_include(<AFHTTPSessionManager.h>)
-#define MODULE_AFHTTPSessionManager
-#import <AFHTTPSessionManager.h>
-#endif
-
-#ifdef MODULE_WEB_SERVICE
-#import "MJWebService.h"
-#endif
+#import HEADER_SERVER_URL
 
 #define kLastServerDate @"lastServerDate"
 #define kLastLocalDate @"lastLocalDate"
@@ -38,7 +30,7 @@ static MJTimeManager *s_timeManager = nil;
 
 @implementation MJTimeManager
 
-+ (MJTimeManager *)shareInstance
++ (MJTimeManager *)sharedInstance
 {
     static dispatch_once_t once_patch;
     dispatch_once(&once_patch, ^() {
@@ -127,17 +119,17 @@ static MJTimeManager *s_timeManager = nil;
 
 + (NSDate *)curServerDate
 {
-    return [[self shareInstance] curServerDate];
+    return [[self sharedInstance] curServerDate];
 }
 
 + (NSDate *)curServerDateForServer:(NSString *)serverKey
 {
-    return [[self shareInstance] curServerDateForServer:serverKey];
+    return [[self sharedInstance] curServerDateForServer:serverKey];
 }
 
 + (void)updateServer:(NSString *)serverKey serverDate:(NSDate *)serverDate localDate:(NSDate *)localDate
 {
-    [[self shareInstance] updateServer:serverKey serverDate:serverDate localDate:localDate];
+    [[self sharedInstance] updateServer:serverKey serverDate:serverDate localDate:localDate];
 }
 
 #pragma mark - Private
@@ -168,7 +160,7 @@ static MJTimeManager *s_timeManager = nil;
         return;
     }
     
-    NSTimeInterval dTime = [localDate timeIntervalSince1970] - [_lastLocalDate timeIntervalSince1970];
+    NSTimeInterval dTime = [_lastLocalDate timeIntervalSince1970] - [localDate timeIntervalSince1970];
     
     serverDate = [serverDate dateByAddingTimeInterval:dTime];
     
@@ -235,53 +227,6 @@ static MJTimeManager *s_timeManager = nil;
 
 - (void)syncTime
 {
-    
-#ifdef MODULE_AFHTTPSessionManager1
-    NSDate *dateBefore = [NSDate date];
-    // 获取网络请求的时间
-    AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
-    
-    manager.requestSerializer = [AFHTTPRequestSerializer serializer];
-    manager.responseSerializer = [AFJSONResponseSerializer serializer];
-    [manager.requestSerializer setTimeoutInterval:0];
-    [manager GET:[kServerUrl stringByAppendingString:@"/time.json"] parameters:nil progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-        // 请求成功
-        LogDebug(@"...>>>...receiveData = %@", responseObject);
-        NSDictionary *allHeaderFields = [task.response valueForKey:@"allHeaderFields"];
-        if (allHeaderFields) {
-            NSString *serverTimeStr = allHeaderFields[@"Date"];
-            NSDate *serverTime = [NSDate dateFromRFC822String:serverTimeStr];
-            if (serverTime) {
-                NSDate *dateAfter = [NSDate date];
-                NSDate *localTime = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
-                _lastServerDate = serverTime;
-                _lastLocalDate = localTime;
-                [self saveData];
-                
-                [[NSNotificationCenter defaultCenter] postNotificationName:NOTICE_TIME_SYNC_SUCCEED object:nil];
-            }
-        }
-    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        // 请求失败
-        LogError(@"...>>>...Network error: %@\n", error);
-        NSDictionary *allHeaderFields = [task.response valueForKey:@"allHeaderFields"];
-        if (allHeaderFields) {
-            NSString *serverTimeStr = allHeaderFields[@"Date"];
-            NSDate *serverTime = [NSDate dateFromRFC822String:serverTimeStr];
-            if (serverTime) {
-                NSDate *dateAfter = [NSDate date];
-                NSDate *localTime = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
-                _lastServerDate = serverTime;
-                _lastLocalDate = localTime;
-                [self saveData];
-                
-                [[NSNotificationCenter defaultCenter] postNotificationName:NOTICE_TIME_SYNC_SUCCEED object:nil];
-            }
-        } else {
-            // 没有网络，更新时间失败
-        }
-    }];
-#else
     static BOOL isRequst = NO;
     if (isRequst) {
         return;
@@ -289,7 +234,7 @@ static MJTimeManager *s_timeManager = nil;
     isRequst = YES;
     NSDate *dateBefore = [NSDate date];
     NSOperationQueue *queue = [[NSOperationQueue alloc] init];
-    [NSURLConnection sendAsynchronousRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[kServerUrl stringByAppendingString:@"/time.json"]]]
+    [NSURLConnection sendAsynchronousRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:kServerSyncTimeUrl]]
                                        queue:queue
                            completionHandler:^(NSURLResponse *response, NSData *data, NSError *connectionError) {
                                dispatch_async(dispatch_get_main_queue(), ^{
@@ -303,12 +248,11 @@ static MJTimeManager *s_timeManager = nil;
                                        
                                        [self updateServerDate:serverDate atLocalDate:localDate];
                                        
-                                       [[NSNotificationCenter defaultCenter] postNotificationName:kNoticTimeSyncSucced object:nil];
+                                       [[NSNotificationCenter defaultCenter] postNotificationName:kNoticTimeSyncSucceed object:nil];
                                    }
                                    isRequst = NO;
                                });
                            }];
-#endif
 }
 
 @end

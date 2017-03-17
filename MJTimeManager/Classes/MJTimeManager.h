@@ -8,13 +8,21 @@
 
 #import <Foundation/Foundation.h>
 
+#ifndef kServerSyncTimeUrl
+#ifdef kServerUrl
+#define kServerSyncTimeUrl combine(kServerUrl, @"/time.json")
+#else
+#define kServerSyncTimeUrl @"https://baidu.com"
+#endif
+#endif
+
 /** 时间同步成功通知 */
-static NSString *const kNoticTimeSyncSucced     = @"NoticeTimeSyncSucceed";
+static NSString *const kNoticTimeSyncSucceed     = @"NoticeTimeSyncSucceed";
 
 
 @interface MJTimeManager : NSObject
 
-+ (MJTimeManager *)shareInstance;
++ (MJTimeManager *)sharedInstance;
 
 /// 当前服务器时间
 + (NSDate *)curServerDate;

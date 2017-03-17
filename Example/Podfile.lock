@@ -1,5 +1,7 @@
 PODS:
-  - MJTimeManager (0.1.0)
+  - MJTimeManager (0.1.0):
+    - ModuleCapability (~> 0.1.2)
+  - ModuleCapability (0.1.2)
 
 DEPENDENCIES:
   - MJTimeManager (from `../`)
@@ -9,7 +11,8 @@ EXTERNAL SOURCES:
     :path: ../
 
 SPEC CHECKSUMS:
-  MJTimeManager: 4bcb923e7b4d9efba4d0aefd397c6ec1cd6a2c41
+  MJTimeManager: 72cae010641ab065d9c4ab922f95fd35bee487fd
+  ModuleCapability: 35cea7154ff855362682e90ecf1be529a533c931
 
 PODFILE CHECKSUM: 421d89e33a6d0120c3e99770a69d0a6b5eed1358
 
