@@ -69,7 +69,6 @@ static MJTimeManager *s_timeManager = nil;
                 }
             }
         }
-        NSProcessInfo *processInfo = [NSProcessInfo processInfo];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(systemClockChanged:) name:NSSystemClockDidChangeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
 #ifdef MODULE_WEB_SERVICE
@@ -92,7 +91,6 @@ static MJTimeManager *s_timeManager = nil;
 // 用户时间修改通知NSSystemClockDidChangeNotification、UIApplicationSignificantTimeChangeNotification
 - (void)systemClockChanged:(NSNotification *)aNotic
 {
-    NSTimeInterval upTime = [[NSProcessInfo processInfo] systemUptime];
     if (_lastLocalDate == nil) {
         // 没有获取过服务器时间
         return;
