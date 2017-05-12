@@ -8,9 +8,7 @@
 
 #import "MJTimeManager.h"
 #import HEADER_SERVER_URL
-#ifdef MODULE_WEB_SERVICE
-#import "MJWebService.h"
-#endif
+#import HEADER_WEB_SERVICE
 
 #define kLastServerDate @"lastServerDate"
 #define kLastLocalDate @"lastLocalDate"
@@ -71,7 +69,7 @@ static MJTimeManager *s_timeManager = nil;
         }
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(systemClockChanged:) name:NSSystemClockDidChangeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
-#ifdef MODULE_WEB_SERVICE
+#if defined(MODULE_WEB_SERVICE) && defined(kNoticGetNetwork)
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appStatusActive:) name:kNoticGetNetwork object:nil];
 #endif
     }
@@ -235,26 +233,24 @@ static MJTimeManager *s_timeManager = nil;
     }
     isRequst = YES;
     NSDate *dateBefore = [NSDate date];
-    NSOperationQueue *queue = [[NSOperationQueue alloc] init];
-    [NSURLConnection sendAsynchronousRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:kServerSyncTimeUrl]]
-                                       queue:queue
-                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *connectionError) {
-                               dispatch_async(dispatch_get_main_queue(), ^{
-                                   NSDictionary *allHeaderFields = [response valueForKey:@"allHeaderFields"];
-                                   NSString *serverDateStr = allHeaderFields[@"Date"];
-                                   NSDate *serverDate = [NSDate dateFromRFC822String:serverDateStr];
-                                   NSLog(@"%@", serverDate);
-                                   if (serverDate) {
-                                       NSDate *dateAfter = [NSDate date];
-                                       NSDate *localDate = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
-                                       
-                                       [self updateServerDate:serverDate atLocalDate:localDate];
-                                       
-                                       [[NSNotificationCenter defaultCenter] postNotificationName:kNoticTimeSyncSucceed object:nil];
-                                   }
-                                   isRequst = NO;
-                               });
-                           }];
+
+    getServerUrl(kServerSyncTimeUrl, ^(NSURLResponse *response, id data, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSDictionary *allHeaderFields = [response valueForKey:@"allHeaderFields"];
+            NSString *serverDateStr = allHeaderFields[@"Date"];
+            NSDate *serverDate = [NSDate dateFromRFC822String:serverDateStr];
+            NSLog(@"%@", serverDate);
+            if (serverDate) {
+                NSDate *dateAfter = [NSDate date];
+                NSDate *localDate = [dateBefore dateByAddingTimeInterval:[dateAfter timeIntervalSinceDate:dateBefore] / 2];
+                
+                [self updateServerDate:serverDate atLocalDate:localDate];
+                
+                [[NSNotificationCenter defaultCenter] postNotificationName:kNoticTimeSyncSucceed object:nil];
+            }
+            isRequst = NO;
+        });
+    });
 }
 
 @end
