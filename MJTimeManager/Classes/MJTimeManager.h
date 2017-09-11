@@ -36,6 +36,8 @@ static NSString *const kNoticTimeSyncSucceed     = @"NoticeTimeSyncSucceed";
 /// 同步时间
 - (void)syncTime;
 
++ (void)reliableTimeUpdate:(void (^)(void))callback;
+
 @end
 
 

@@ -26,6 +26,10 @@ static MJTimeManager *s_timeManager = nil;
 
 @property (nonatomic, strong) NSMutableDictionary *dicOtherServerDates;         ///< 其他服务器时间
 
+@property (nonatomic, strong) NSMutableArray *arrCallback;                      ///< 回掉block列表
+
+@property (nonatomic, assign) BOOL isTimeReliable;                              ///< 当前时间是否可信任
+
 @end
 
 
@@ -46,6 +50,7 @@ static MJTimeManager *s_timeManager = nil;
     self = [super init];
     if (self) {
         
+        _arrCallback = [[NSMutableArray alloc] init];
         // 读取保存在userDefault里面的数据
         NSDictionary *dicTime = [[NSUserDefaults standardUserDefaults] objectForKey:kDefaultLastSyncTime];
         if (dicTime) {
@@ -132,6 +137,11 @@ static MJTimeManager *s_timeManager = nil;
     [[self sharedInstance] updateServer:serverKey serverDate:serverDate localDate:localDate];
 }
 
++ (void)reliableTimeUpdate:(void (^)(void))callback
+{
+    [[self sharedInstance] reliableTimeUpdate:callback];
+}
+
 #pragma mark - Private
 
 - (NSDate *)curServerDate
@@ -183,6 +193,20 @@ static MJTimeManager *s_timeManager = nil;
     _lastServerDate = serverDate;
     _lastLocalDate = localDate;
     [self saveData];
+}
+
+
+- (void)reliableTimeUpdate:(void (^)(void))callback
+{
+    if (callback == NULL) {
+        return;
+    }
+    
+    if (_isTimeReliable) {
+        callback();
+    }
+    
+    [_arrCallback addObject:callback];
 }
 
 #pragma mark -
@@ -247,6 +271,13 @@ static MJTimeManager *s_timeManager = nil;
                 [self updateServerDate:serverDate atLocalDate:localDate];
                 
                 [[NSNotificationCenter defaultCenter] postNotificationName:kNoticTimeSyncSucceed object:nil];
+                
+                _isTimeReliable = true;
+                
+                for (void (^aCallback)(void) in _arrCallback) {
+                    aCallback();
+                }
+                [_arrCallback removeAllObjects];
             }
             isRequst = NO;
         });
