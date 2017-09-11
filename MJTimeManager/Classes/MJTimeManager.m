@@ -204,6 +204,7 @@ static MJTimeManager *s_timeManager = nil;
     
     if (_isTimeReliable) {
         callback();
+        return;
     }
     
     [_arrCallback addObject:callback];
