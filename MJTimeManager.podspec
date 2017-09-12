@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'MJTimeManager'
-  s.version          = '0.1.1'
+  s.version          = '0.1.2'
   s.summary          = 'MJTimeManager is used for synchronization server time.'
 
   s.homepage         = 'https://github.com/Musjoy/MJTimeManager'
