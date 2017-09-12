@@ -279,6 +279,8 @@ static MJTimeManager *s_timeManager = nil;
                     aCallback();
                 }
                 [_arrCallback removeAllObjects];
+            } else {
+                [self performSelector:@selector(syncTime) withObject:nil afterDelay:60];
             }
             isRequst = NO;
         });
